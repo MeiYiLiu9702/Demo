@@ -1,0 +1,27 @@
+---
+title: "R web crawer"
+author: "MeiYi-Liu"
+date: "2019/11/28"
+output: html_document
+---
+## Setting Environment
+
+```{r}
+rm(list = ls())
+setwd("D:/R/Demo")
+```
+
+## Loading the package ineed
+
+```{r}
+library(rvest)
+library(jsonlite)
+```
+
+## Reading the information from the url.
+
+```{r}
+urlR <-"http://udndata.com/ndapp/Searchdec?udndbid=udndata&page=1&SearchString=%A4%6A%A6%77%B4%CB%AA%4C%A4%BD%B6%E9%2B%A4%E9%B4%C1%3E%3D20150101%2B%A4%E9%B4%C1%3C%3D20181009%2B%B3%F8%A7%4F%3D%C1%70%A6%58%B3%F8%7C%B8%67%C0%D9%A4%E9%B3%F8%7C%C1%70%A6%58%B1%DF%B3%F8%7CUpaper&sharepage=50&select=1&kind=2&showSearchString="
+a <- read_html(urlR)
+```
+
