@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon May  4 14:03:47 2020
+
+@author: may
+"""
+import os
+import docx
+import pandas as pd
+import requests
+import time
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from getkey import getkey, keys
+### input
+print('請輸入關鍵字')
+keyword = input()
+print('起始時間，格式：年-月-日')
+start = input()
+print('結束時間，格式：年-月-日')
+end = input()
+
+## Open website
+driver = webdriver.Chrome()
+driver.get("https://udndata.com/ndapp/Index?cp=udn")
+driver.set_window_size(1920,1056)
+time.sleep(2)
+keyword_input = driver.find_element_by_id('SearchString')
+dateStart = driver.find_element_by_id('datepicker-start')
+dateEnd = driver.find_element_by_id('datepicker-end')
+# input data into website
+keyword_input.send_keys(keyword)
+dateStart.send_keys(start)
+dateEnd.send_keys(end)
+search_btn = driver.find_element_by_name('submit')
+search_btn.click()
+time.sleep(5)
+print('搜尋結果的網址是：'+driver.current_url)
+
+# Loggin
+loggin_btn = driver.find_element_by_class_name('fa-group')
+loggin_btn.click()
+time.sleep(2)
+str_count = 'https://udndata.com/ndapp/Searchdec?udndbid=udnfree&page=' # 1&
+if str_count in driver.current_url:pass
+else:driver.back()
+
+searchAmount = int(driver.find_element_by_xpath("//*[@id='mainbar']/section/div[1]/span[2]").text)
+print('搜尋結果總共有：'+str(searchAmount)+'筆')
+
+# news_btn = driver.find_elements_by_class_name('control-pic')
+urlElements = '/ndapp/Story'
+right_url = []
+for i in range(0,(searchAmount//20)+1):
+    print(i)
+    if i != 0 and searchAmount//20 >= 1:
+        btn = len(driver.find_elements_by_xpath('//*[@id="mainbar"]/section/div[2]/a'))
+        next_btn = driver.find_element_by_xpath('//*[@id="mainbar"]/section/div[2]/a['+str(btn-1)+']')
+        if not next_btn is None:
+            next_btn.click()
+            time.sleep(1)
+        else:break
+    else:pass
+    tmp = []
+    news_btn = driver.find_elements_by_css_selector('a')
+    for j,t in enumerate(news_btn):
+        url = str(t.get_attribute('href'))
+        if not url is None:
+            if urlElements in url:
+                print(j,t.text)
+                tmp.append(url)
+            else:pass
+    right_url.extend(tmp)
+
+title = []
+repoters = []
+contents = []
+date_list = []
+news_note = []
+urls = []
+
+for idx,c in enumerate(right_url):
+    print(idx)
+    driver.switch_to.window(driver.window_handles[0])
+    time.sleep(1)
+    print(c)
+    sc = 'window.open('+'\"'+str(c)+'\"'+')'
+    driver.execute_script(sc)
+    driver.switch_to.window(driver.window_handles[1])
+    htmltext = driver.page_source
+    udn_Soup = BeautifulSoup(htmltext,'lxml')
+    date = udn_Soup.find('span',{'class':'story-source'}).get_text()[1:11]
+    peo = udn_Soup.find('span',{'class':'story-report'}).get_text()
+    tit = udn_Soup.find('h1').get_text()
+    con = []
+    for i in udn_Soup.find_all('p')[:-1]:
+        con.append(i.get_text())
+    con = ''.join(con)
+    print(tit,'\n',date,'\n',con)
+    time.sleep(1)
+    print('是否要存檔 [y/n]')
+    ask = input()
+    if ask == 'y':
+        title.append(tit)
+        repoters.append(peo)
+        contents.append(con)
+        date_list.append(date)
+        urls.append(c)
+        print('是否要寫註解 [y/n]')
+        note = input()
+        if note == 'y':
+            text = input()
+            news_note.append(text)
+        else:
+            news_note.append(None)
+    else:pass
+    driver.execute_script("window.close()")
+
+    
+
+import docx
+whole_news = pd.DataFrame([title,repoters,contents,date_list,news_note,urls]).T
+whole_news.columns = ['新聞標題','記者', '內文','報導日','備註','網址']
+doc = docx.Document()
+# add the header rows.
+t = doc.add_table(whole_news.shape[0]+1, whole_news.shape[1])
+for j in range(whole_news.shape[-1]):
+    t.cell(0,j).text = whole_news.columns[j]
+
+for i in range(whole_news.shape[0]):
+    for j in range(whole_news.shape[-1]):
+        t.cell(i+1,j).text = str(whole_news.values[i,j])
+print('Please input filename:')
+filename = input()
+doc.save(filename+'.docx')
